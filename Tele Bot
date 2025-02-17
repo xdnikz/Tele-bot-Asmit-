@@ -1,0 +1,52 @@
+import os
+from telegram import Update
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from gtts import gTTS
+from pydub import AudioSegment
+
+# Yahan apne Telegram Bot ka token dalein
+TELEGRAM_BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"
+
+# Function jo text ko speech me convert karega
+def text_to_speech(text, filename="output.mp3"):
+    tts = gTTS(text=text, lang="hi")  # Hindi me bolne ke liye
+    tts.save(filename)
+
+    # Volume ko boost karna
+    sound = AudioSegment.from_file(filename, format="mp3")
+    louder_sound = sound + 20  # Volume 20dB tak badha diya
+    louder_sound.export(filename, format="mp3")
+
+# Start command handle karega
+def start(update: Update, context: CallbackContext) -> None:
+    update.message.reply_text("Namaste! Mujhe koi bhi message bhejein, main use awaz me badal dunga. 🔊")
+
+# Jo bhi text aayega usko speech me convert karega
+def handle_message(update: Update, context: CallbackContext) -> None:
+    text = update.message.text
+    user_id = update.message.chat_id
+    filename = f"{user_id}_audio.mp3"
+
+    text_to_speech(text, filename)
+    
+    # Audio send karega
+    with open(filename, "rb") as audio:
+        context.bot.send_audio(chat_id=user_id, audio=audio)
+
+    # File delete kar dena taaki storage full na ho
+    os.remove(filename)
+
+# Main bot function
+def main():
+    updater = Updater(TELEGRAM_BOT_TOKEN, use_context=True)
+    dp = updater.dispatcher
+
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
+
+    updater.start_polling()
+    updater.idle()
+
+if __name__ == "__main__":
+    main()
+
